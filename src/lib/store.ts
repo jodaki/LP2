@@ -67,7 +67,21 @@ export type WorkshopState = {
   addSupplier: (row: Omit<Supplier, "id">) => void;
   addEmployee: (row: Omit<Employee, "id">) => void;
   addMove: (row: Omit<InvMove, "id">) => void;
-  remove: (collection: keyof Pick<WorkshopState, "purchases" | "production" | "sales" | "customers" | "visits" | "expenses" | "suppliers" | "employees" | "moves">, id: string) => void;
+  remove: (
+    collection: keyof Pick<
+      WorkshopState,
+      | "purchases"
+      | "production"
+      | "sales"
+      | "customers"
+      | "visits"
+      | "expenses"
+      | "suppliers"
+      | "employees"
+      | "moves"
+    >,
+    id: string,
+  ) => void;
   resetSample: () => void;
 };
 
@@ -100,10 +114,26 @@ function sample(): Pick<
   };
 }
 
+// Important: do NOT call sample() at module load time
+const emptyState = {
+  settings: { ...initialSettings },
+  kpiDefs: seed.kpis as KpiDef[],
+  purchases: [] as Purchase[],
+  production: [] as Production[],
+  sales: [] as Sale[],
+  customers: [] as Customer[],
+  visits: [] as Visit[],
+  expenses: [] as Expense[],
+  suppliers: [] as Supplier[],
+  employees: [] as Employee[],
+  moves: [] as InvMove[],
+};
+
 export const useWorkshop = create<WorkshopState>()(
   persist(
-    (set) => ({
-      ...sample(),
+    (set, get) => ({
+      ...emptyState,
+
       setSettings: (p) => set((s) => ({ settings: { ...s.settings, ...p } })),
       setKpiDef: (key, patch) =>
         set((s) => ({
@@ -124,6 +154,15 @@ export const useWorkshop = create<WorkshopState>()(
         })),
       resetSample: () => set(sample()),
     }),
-    { name: "poldokhtar-workshop-v1" },
+    {
+      name: "poldokhtar-workshop-v1",
+      // Only run sample data on the client when storage is empty
+      onRehydrateStorage: () => (state) => {
+        if (state && state.purchases.length === 0 && state.sales.length === 0) {
+          // storage was empty → load sample data
+          useWorkshop.setState(sample());
+        }
+      },
+    },
   ),
 );
